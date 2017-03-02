@@ -12,7 +12,7 @@
 
 const 
   bodyParser = require('body-parser'),
-  config = require('config'),
+  config = require('./config/default.json'),
   crypto = require('crypto'),
   express = require('express'),
   https = require('https'),  
@@ -33,23 +33,22 @@ app.use(express.static('public'));
 // App Secret can be retrieved from the App Dashboard
 const APP_SECRET = (process.env.MESSENGER_APP_SECRET) ? 
   process.env.MESSENGER_APP_SECRET :
-  config.get('appSecret');
+  'abc5e59c25c7671156900cd11a2e6169';
 
 // Arbitrary value used to validate a webhook
 const VALIDATION_TOKEN = (process.env.MESSENGER_VALIDATION_TOKEN) ?
   (process.env.MESSENGER_VALIDATION_TOKEN) :
-  config.get('validationToken');
+  'my_voice_is_my_password_verify_me';
 
 // Generate a page access token for your page from the App Dashboard
 const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN) ?
-  (process.env.MESSENGER_PAGE_ACCESS_TOKEN) :
-  config.get('pageAccessToken');
+  (process.env.MESSENGER_PAGE_ACCESS_TOKEN) :'EAAZAzqkyyblIBAJqq9i2ZBfbmrwaXcZBLNU84Fxodz1zQcE21ryHZChgCfZAMJdbqqThp14fecewfWgT8RxQ2bxQyq5ffLoedT2sGhwOkhpW2lIEzPEa6ZBVcLXdKcHJyuKdEEDvOcMaZAZCvlYJgiqABfVonbBwyZAxGH0trmbN32oQ6NPZC5FA8v';
 
 // URL where the app is running (include protocol). Used to point to scripts and 
 // assets located at this address. 
 const SERVER_URL = (process.env.SERVER_URL) ?
   (process.env.SERVER_URL) :
-  config.get('serverURL');
+  'https://0b1c1840.ngrok.io';
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   console.error("Missing config values");
@@ -306,7 +305,15 @@ function receivedMessage(event) {
       case 'account linking':
         sendAccountLinking(senderID);
         break;
-
+	  case 'When is my next JSA Payment?':
+        sendTextMessage(senderID, 'Please provide your National Insurance number');
+        break;
+	  case 'When is my next JSA Payment':
+        sendTextMessage(senderID, 'Please provide your National Insurance number');
+        break;
+	   case 'my national insurance number is ':
+        sendTextMessage(senderID, 'Please confirm your date of birth');
+        break;
       default:
         sendTextMessage(senderID, messageText);
     }
@@ -402,6 +409,25 @@ function receivedAccountLink(event) {
 
   console.log("Received account link event with for user %d with status %s " +
     "and auth code %s ", senderID, status, authCode);
+}
+
+
+function askNinoQuestion(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "image",
+        payload: {
+          url: SERVER_URL + "/assets/rift.png"
+        }
+      }
+    }
+  };
+
+  callSendAPI(messageData);
 }
 
 /*
