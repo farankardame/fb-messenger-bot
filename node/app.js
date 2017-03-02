@@ -233,7 +233,7 @@ function receivedMessage(event) {
   var messageText = message.text;
   var messageAttachments = message.attachments;
   var quickReply = message.quick_reply;
-
+  var custNino = "";
   if (isEcho) {
     // Just logging message echoes to console
     console.log("Received echo for message %s and app %d with metadata %s", 
@@ -253,70 +253,17 @@ function receivedMessage(event) {
     // If we receive a text message, check to see if it matches any special
     // keywords and send back the corresponding example. Otherwise, just echo
     // the text we received.
-    switch (messageText) {
-      case 'image':
-        sendImageMessage(senderID);
-        break;
-
-      case 'gif':
-        sendGifMessage(senderID);
-        break;
-
-      case 'audio':
-        sendAudioMessage(senderID);
-        break;
-
-      case 'video':
-        sendVideoMessage(senderID);
-        break;
-
-      case 'file':
-        sendFileMessage(senderID);
-        break;
-
-      case 'button':
-        sendButtonMessage(senderID);
-        break;
-
-      case 'generic':
-        sendGenericMessage(senderID);
-        break;
-
-      case 'receipt':
-        sendReceiptMessage(senderID);
-        break;
-
-      case 'quick reply':
-        sendQuickReply(senderID);
-        break;        
-
-      case 'read receipt':
-        sendReadReceipt(senderID);
-        break;        
-
-      case 'typing on':
-        sendTypingOn(senderID);
-        break;        
-
-      case 'typing off':
-        sendTypingOff(senderID);
-        break;        
-
-      case 'account linking':
-        sendAccountLinking(senderID);
-        break;
-	  case 'When is my next JSA Payment?':
-        sendTextMessage(senderID, 'Please provide your National Insurance number');
-        break;
-	  case 'When is my next JSA Payment':
-        sendTextMessage(senderID, 'Please provide your National Insurance number');
-        break;
-	   case 'my national insurance number is ':
-        sendTextMessage(senderID, 'Please confirm your date of birth');
-        break;
-      default:
-        sendTextMessage(senderID, messageText);
-    }
+	if(messageText.toUpperCase() === 'When is my next JSA Payment?'.toUpperCase()){
+		sendTextMessage(senderID, "Please provide your National Insurance number");
+	}
+	if(messageText.search(new RegExp("my national insurance number is", "i"))){
+		custNino = messageText.slice(messageText.lastIndexOf(' ') + 1);
+		sendTextMessage(senderID, "Please confirm your Date of birth");
+	}
+	if(messageText.search(new RegExp("my date of birth is", "i"))){
+		var custDob = messageText.slice(messageText.lastIndexOf(' ') + 1);
+		askDobQuestion(recipientId,custNino);
+	}
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
   }
@@ -412,22 +359,15 @@ function receivedAccountLink(event) {
 }
 
 
-function askNinoQuestion(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "image",
-        payload: {
-          url: SERVER_URL + "/assets/rift.png"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
+function askDobQuestion(recipientId,custNino) {
+    
+  performRequest('cis/customer', 'GET', {
+    nino: custNino,
+    apikey: 'im2IurZLr5YT2dgsmKPXGJcnMsn9ado8'
+  }, function(data) {
+    console.log('Fetched ' + data.result.paging.total_items + ' cards');
+	sendTextMessage(recipientId,data.result);
+  });
 }
 
 /*
@@ -852,6 +792,47 @@ function callSendAPI(messageData) {
     }
   });  
 }
+
+function performRequest(endpoint, method, data, success) {
+  var dataString = JSON.stringify(data);
+  var headers = {};
+  
+  if (method == 'GET') {
+    endpoint += '?' + querystring.stringify(data);
+  }
+  else {
+    headers = {
+      'Content-Type': 'application/json',
+      'Content-Length': dataString.length
+    };
+  }
+  var options = {
+    host: 'https://mchannelplatform-prod.apigee.net',
+    path: endpoint,
+    method: method,
+    headers: headers
+  };
+
+  var req = https.request(options, function(res) {
+    res.setEncoding('utf-8');
+
+    var responseString = '';
+
+    res.on('data', function(data) {
+      responseString += data;
+    });
+
+    res.on('end', function() {
+      console.log(responseString);
+      var responseObject = JSON.parse(responseString);
+      success(responseObject);
+    });
+  });
+
+  req.write(dataString);
+  req.end();
+}
+
 
 // Start server
 // Webhooks must be available via SSL with a certificate signed by a valid 
