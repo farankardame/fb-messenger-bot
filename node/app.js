@@ -18,6 +18,7 @@ const
   https = require('https'),  
   request = require('request');
 
+var custNino = "";
 var app = express();
 app.set('port', process.env.PORT || 5000);
 app.set('view engine', 'ejs');
@@ -233,7 +234,7 @@ function receivedMessage(event) {
   var messageText = message.text;
   var messageAttachments = message.attachments;
   var quickReply = message.quick_reply;
-  var custNino = "";
+
   if (isEcho) {
     // Just logging message echoes to console
     console.log("Received echo for message %s and app %d with metadata %s", 
@@ -247,22 +248,29 @@ function receivedMessage(event) {
     sendTextMessage(senderID, "Quick reply tapped");
     return;
   }
+  
+  console.log(" Message 1" + messageText.toUpperCase());
 
   if (messageText) {
 
     // If we receive a text message, check to see if it matches any special
     // keywords and send back the corresponding example. Otherwise, just echo
     // the text we received.
-	if(messageText.toUpperCase() === 'When is my next JSA Payment?'.toUpperCase()){
+	
+	console.log(messageText);
+	
+	if(messageText.startsWith("When is my next JSA Payment")){		 
 		sendTextMessage(senderID, "Please provide your National Insurance number");
 	}
-	if(messageText.search(new RegExp("my national insurance number is", "i"))){
+	else if(messageText.startsWith("my national insurance number is", "i")){
 		custNino = messageText.slice(messageText.lastIndexOf(' ') + 1);
+		console.log("Nino Before " +custNino);
 		sendTextMessage(senderID, "Please confirm your Date of birth");
 	}
-	if(messageText.search(new RegExp("my date of birth is", "i"))){
+	else if(messageText.startsWith("my date of birth is", "i")){
 		var custDob = messageText.slice(messageText.lastIndexOf(' ') + 1);
-		askDobQuestion(recipientId,custNino);
+		console.log("Nino after " +custNino + "DOB " + custDob);
+		askDobQuestion(senderID,custNino);
 	}
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
@@ -361,11 +369,11 @@ function receivedAccountLink(event) {
 
 function askDobQuestion(recipientId,custNino) {
     
-  performRequest('cis/customer', 'GET', {
+  performRequest('/cis/customer', 'GET', {
     nino: custNino,
     apikey: 'im2IurZLr5YT2dgsmKPXGJcnMsn9ado8'
   }, function(data) {
-    console.log('Fetched ' + data.result.paging.total_items + ' cards');
+    console.log('Fetched ' + data);
 	sendTextMessage(recipientId,data.result);
   });
 }
@@ -796,9 +804,11 @@ function callSendAPI(messageData) {
 function performRequest(endpoint, method, data, success) {
   var dataString = JSON.stringify(data);
   var headers = {};
+  var querystring = require('querystring');
   
   if (method == 'GET') {
     endpoint += '?' + querystring.stringify(data);
+	console.log("Endpoint is " + endpoint);
   }
   else {
     headers = {
@@ -807,7 +817,7 @@ function performRequest(endpoint, method, data, success) {
     };
   }
   var options = {
-    host: 'https://mchannelplatform-prod.apigee.net',
+    host: 'mchannelplatform-prod.apigee.net',
     path: endpoint,
     method: method,
     headers: headers
@@ -819,12 +829,14 @@ function performRequest(endpoint, method, data, success) {
     var responseString = '';
 
     res.on('data', function(data) {
-      responseString += data;
+		console.log("data " + data);		
+		responseString += data;
     });
 
     res.on('end', function() {
-      console.log(responseString);
+      console.log("Response from Apigee" + responseString);
       var responseObject = JSON.parse(responseString);
+	  console.log("Response after parse new " + responseObject);
       success(responseObject);
     });
   });
