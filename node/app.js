@@ -374,7 +374,7 @@ function askDobQuestion(recipientId,custNino) {
     apikey: 'im2IurZLr5YT2dgsmKPXGJcnMsn9ado8'
   }, function(data) {
     console.log('Fetched ' + data);
-	sendTextMessage(recipientId,data.result);
+	sendTextMessage(recipientId,data);
   });
 }
 
@@ -835,9 +835,9 @@ function performRequest(endpoint, method, data, success) {
 
     res.on('end', function() {
       console.log("Response from Apigee" + responseString);
-      var responseObject = JSON.parse(responseString);
-	  console.log("Response after parse new " + responseObject);
-      success(responseObject);
+     // var responseObject = JSON.parse(responseString);
+	 // console.log("Response after parse new " + responseObject);
+      success(responseString);
     });
   });
 
