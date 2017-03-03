@@ -19,6 +19,7 @@ const
   request = require('request');
 
 var custNino = "";
+var custDob = "";
 var app = express();
 app.set('port', process.env.PORT || 5000);
 app.set('view engine', 'ejs');
@@ -49,7 +50,7 @@ const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN) ?
 // assets located at this address. 
 const SERVER_URL = (process.env.SERVER_URL) ?
   (process.env.SERVER_URL) :
-  'https://0b1c1840.ngrok.io';
+  'http://b2f2e1cc.ngrok.io';
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   console.error("Missing config values");
@@ -259,18 +260,18 @@ function receivedMessage(event) {
 	
 	console.log(messageText);
 	
-	if(messageText.startsWith("When is my next JSA Payment")){		 
+	if(messageText.startsWith("When is my next JSA Payment", "i")){		 
 		sendTextMessage(senderID, "Please provide your National Insurance number");
 	}
 	else if(messageText.startsWith("my national insurance number is", "i")){
 		custNino = messageText.slice(messageText.lastIndexOf(' ') + 1);
 		console.log("Nino Before " +custNino);
-		sendTextMessage(senderID, "Please confirm your Date of birth");
+		sendTextMessage(senderID, "Please confirm your date of birth for example 20-08-1990");
 	}
 	else if(messageText.startsWith("my date of birth is", "i")){
-		var custDob = messageText.slice(messageText.lastIndexOf(' ') + 1);
+		custDob = messageText.slice(messageText.lastIndexOf(' ') + 1);
 		console.log("Nino after " +custNino + "DOB " + custDob);
-		askDobQuestion(senderID,custNino);
+		askDobQuestion(senderID,custNino,custDob);
 	}
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
@@ -367,14 +368,22 @@ function receivedAccountLink(event) {
 }
 
 
-function askDobQuestion(recipientId,custNino) {
+function askDobQuestion(recipientId,custNino,custDob) {
     
   performRequest('/cis/customer', 'GET', {
     nino: custNino,
     apikey: 'im2IurZLr5YT2dgsmKPXGJcnMsn9ado8'
   }, function(data) {
     console.log('Fetched ' + data);
-	sendTextMessage(recipientId,data);
+	var responseObject = JSON.parse(data);
+	var tempDob = responseObject.getCustomerResponse.customer.dob.replace('Z','');
+	var newDob = tempDob.substring(8,10)+"-"+tempDob.substring(5,7)+"-"+tempDob.substring(0,4);
+	console.log("newDob "+newDob);
+	var textResp = "Sorry I am not sure who you are please try again";
+	if (newDob == custDob){
+	textResp = "Hi " +responseObject.getCustomerResponse.customer.firstName+" "+responseObject.getCustomerResponse.customer.lastName+" "+" your next payment is "+responseObject.getCustomerResponse.customer.amount+" and due on "+responseObject.getCustomerResponse.customer.paymentDate.replace('Z','');
+	}
+	sendTextMessage(recipientId,textResp);
   });
 }
 
